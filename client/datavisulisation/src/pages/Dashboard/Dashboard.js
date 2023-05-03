@@ -16,7 +16,7 @@ import {Bar, Pie} from 'react-chartjs-2'
 import {Card, CardBody, CardHeader, Col, Input, Label, Row} from 'reactstrap'
 import axios from 'axios'
 function Dashboard() {
-    const [startYear,setStartYear] = useState([])
+    const [allData,setAllData] = useState({})
     const [data,setData] = useState({})
     const [chartData,setChartData] = useState({})
 
@@ -52,6 +52,10 @@ function Dashboard() {
                     data:[...response.data['country'].map(item => item.count)],
                     color:[...response.data['country'].map(item => (getRandomColor()))]
                 },
+                topic:{
+                    label : [...response.data['topic'].map(item => item._id) ],
+                    data:[...response.data['topic'].map(item => item.count)],
+                },
                 i:response.data['i'],
                 l:response.data['l'],
                 r:response.data['r'],
@@ -62,33 +66,46 @@ function Dashboard() {
           });
     }
 
-    const getAllStartYear = () =>{
+    const getAllSectorYearTopic = () =>{
         let config = {
             method: 'get',
             maxBodyLength: Infinity,
-            url: 'http://localhost:5000/dataset/get_all_start_years',
+            url: 'http://localhost:5000/dataset/get_needFull_data_for_filter',
           };
           
           axios.request(config)
-          .then((response) => {   
-            setStartYear(response.data)
+          .then((response) => {  
+            setAllData({...response.data})
            }).catch((err) => {
             console.log(err);
            })
     }
 
     const filterData = () =>{
+        let filterData = {...data}
+        Object.keys(filterData).forEach(key => {
+            if (filterData[key] === "" || filterData[key] === null || filterData[key] === undefined) {
+              delete filterData[key];
+            }
+        });
+
+        if(Object.keys(filterData).length === 0) {
+            getChartData()
+            return
+        }
+
         let config = {
             method: 'post',
             maxBodyLength: Infinity,
             url: 'http://localhost:5000/dataset/get_filter_data',
             data:{
-                ...data
+                ...filterData
             }
           };
           
           axios.request(config)
           .then((response) => {   
+            console.log(response.data);
             setChartData({
                 ...chartData,
                 intensity:{
@@ -103,6 +120,10 @@ function Dashboard() {
                     label : [...response.data['relevance'].map(item => item._id) ],
                     data:[...response.data['relevance'].map(item => item.sum)]
                 },
+                topic:{
+                    label : [...response.data['topic'].map(item => item._id) ],
+                    data:[...response.data['topic'].map(item => item.count)],
+                },
             })
            }).catch((err) => {
             console.log(err);
@@ -115,12 +136,11 @@ function Dashboard() {
         for (var i = 0; i < 6; i++) {
           color += letters[Math.floor(Math.random() * 16)];
         }
-        console.log(color);
         return color;
       }
 
     useEffect(() =>{
-        getAllStartYear()
+        getAllSectorYearTopic()
         getChartData()
     },[])
 
@@ -144,11 +164,9 @@ function Dashboard() {
     const onChangeHandler =  (e) =>{
         setData({
             ...data,
-            [e.target.name] : parseInt(e.target.value)
+            [e.target.name] : e.target.value
         })
     }
-
-    console.log(chartData);
 
   return (
     <div style={{marginTop:"-3rem"}}>
@@ -158,8 +176,8 @@ function Dashboard() {
                     <CardBody>
                         <Row>
                             <Col>
-                                <h5 class="text-uppercase mb-2" style={{color:"white"}}> Intensity</h5>
-                                <span class="font-weight-bold mb-0" style={{color:'white'}}>{chartData.i}</span>
+                                <h5 className="text-uppercase mb-2" style={{color:"white"}}> Intensity</h5>
+                                <span className="font-weight-bold mb-0" style={{color:'white'}}>{chartData.i}</span>
                             </Col>
                         </Row>
                     </CardBody>
@@ -170,8 +188,8 @@ function Dashboard() {
                     <CardBody>
                         <Row>
                             <Col>
-                                <h5 class="text-uppercase mb-2" style={{color:"#fff"}}>Likelihood</h5>
-                                <span class="font-weight-bold mb-0" style={{color:'white'}}>{chartData.l}</span>
+                                <h5 className="text-uppercase mb-2" style={{color:"#fff"}}>Likelihood</h5>
+                                <span className="font-weight-bold mb-0" style={{color:'white'}}>{chartData.l}</span>
                             </Col>
                         </Row>
                     </CardBody>
@@ -182,8 +200,8 @@ function Dashboard() {
                     <CardBody>
                         <Row>
                             <Col>
-                                <h5 class="text-uppercase mb-2" style={{color:"white"}}>Relevance</h5>
-                                <span class="font-weight-bold mb-0" style={{color:'white'}}>{chartData.r}</span>
+                                <h5 className="text-uppercase mb-2" style={{color:"white"}}>Relevance</h5>
+                                <span className="font-weight-bold mb-0" style={{color:'white'}}>{chartData.r}</span>
                             </Col>
                         </Row>
                     </CardBody>
@@ -194,8 +212,8 @@ function Dashboard() {
                     <CardBody>
                         <Row>
                             <Col>
-                                <h5 class="text-uppercase mb-2" style={{color:"white"}}>Revenue</h5>
-                                <span class="font-weight-bold mb-0" style={{color:'white'}}>{6}</span>
+                                <h5 className="text-uppercase mb-2" style={{color:"white"}}>Revenue</h5>
+                                <span className="font-weight-bold mb-0" style={{color:'white'}}>{6}</span>
                             </Col>  
                         </Row>
                     </CardBody>
@@ -212,11 +230,109 @@ function Dashboard() {
                             name='start_year'
                             onChange={(e) => onChangeHandler(e)}
                         >
-                            <option>Select Start Year</option>
+                            <option value="">Select Start Year</option>
                             {
-                                startYear && startYear.map((year,index) => (
+                                allData && allData?.start_year?.map((year,index) => (
                                     year !== "" &&
                                     <option key={index} value={year}>{year}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                    <Col md='3'>
+                        <Label>Select Topic</Label>
+                        <Input
+                            type='select'
+                            name='topic'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Topic</option>
+                            {
+                                allData && allData?.topic?.map((topic,index) => (
+                                    topic !== "" &&
+                                    <option key={index} value={topic}>{topic}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                    <Col md='3'>
+                        <Label>Select Sector</Label>
+                        <Input
+                            type='select'
+                            name='sector'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Sector</option>
+                            {
+                                allData && allData?.sector?.map((sector,index) => (
+                                    sector !== "" &&
+                                    <option key={index} value={sector}>{sector}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                    <Col md='3'>
+                        <Label>Select Region</Label>
+                        <Input
+                            type='select'
+                            name='region'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Region</option>
+                            {
+                                allData && allData?.region?.map((region,index) => (
+                                    region !== "" &&
+                                    <option key={index} value={region}>{region}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                </Row>
+                <Row className='mt-4'>
+                    <Col md='3'>
+                        <Label>Select Source</Label>
+                        <Input
+                            type='select'
+                            name='source'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Source</option>
+                            {
+                                allData && allData?.source?.map((source,index) => (
+                                    source !== "" &&
+                                    <option key={index} value={source}>{source}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                    <Col md='3'>
+                        <Label>Select Topic</Label>
+                        <Input
+                            type='select'
+                            name='pestle'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Pestle</option>
+                            {
+                                allData && allData?.pestle?.map((pestle,index) => (
+                                    pestle !== "" &&
+                                    <option key={index} value={pestle}>{pestle}</option>
+                                ))
+                            }
+                        </Input>
+                    </Col>
+                    <Col md='3'>
+                        <Label>Select Country</Label>
+                        <Input
+                            type='select'
+                            name='country'
+                            onChange={(e) => onChangeHandler(e)}
+                        >
+                            <option value="">Select Country</option>
+                            {
+                                allData && allData?.country?.map((country,index) => (
+                                    country !== "" &&
+                                    <option key={index} value={country}>{country}</option>
                                 ))
                             }
                         </Input>
@@ -233,7 +349,7 @@ function Dashboard() {
                                     datasets: [
                                         {
                                             data: [...chartData?.intensity?.data],
-                                            label:"Sector",
+                                            label:"Intensity",
                                             backgroundColor:[getRandomColor()],
                                         },
                                     ],
@@ -255,7 +371,7 @@ function Dashboard() {
                                     datasets: [
                                         {
                                             data: [...chartData?.likelihood?.data],
-                                            label:"Sector",
+                                            label:"Likelihood",
                                             backgroundColor:[getRandomColor()],
                                         },
                                     ],
@@ -275,7 +391,27 @@ function Dashboard() {
                                     datasets: [
                                         {
                                             data: [...chartData?.relevance?.data],
-                                            label:"Sector",
+                                            label:"Relevance",
+                                            backgroundColor:[getRandomColor()],
+                                        },
+                                    ],
+                                }}
+                        />
+                    }
+                    </Col>
+                </Row>
+                <Row className='mt-4 d-flex justify-content-center'>
+                    <Col>
+                        <h3>Topic Graph</h3>
+                        {
+                            Object.keys(chartData).length !== 0 &&
+                            <Bar
+                                data={{
+                                    labels: [...chartData?.topic?.label],
+                                    datasets: [
+                                        {
+                                            data: [...chartData?.topic?.data],
+                                            label:"Topic",
                                             backgroundColor:[getRandomColor()],
                                         },
                                     ],

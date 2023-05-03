@@ -1,14 +1,24 @@
 const dataSetModel = require('../model/datasetSchema');
 
-const get_all_start_years = async (req,res) =>{
-   const data = await dataSetModel.distinct('start_year')
-   res.send(data)
+const get_needFull_data_for_filter = async (req,res) =>{
+    const sector = await dataSetModel.distinct('sector')
+    const topic = await dataSetModel.distinct('topic')
+    const start_year = await dataSetModel.distinct('start_year')
+    const region = await dataSetModel.distinct('region')
+    const pestle = await dataSetModel.distinct('pestle')
+    const source = await dataSetModel.distinct('source')
+    const country = await dataSetModel.distinct('country')
+    res.send({
+        sector,
+        topic,
+        start_year,
+        region,
+        pestle,
+        source,
+        country
+    })
 }
 
-const get_all_sector = async (req,res) => {
-    const sector = await dataSetModel.distinct('sector')
-    res.send(sector)
-}
 
 const get_data = async (req,res) =>{
 
@@ -104,6 +114,26 @@ const get_data = async (req,res) =>{
             }
         }
     ])
+
+    const topic = await dataSetModel.aggregate([
+        {
+            $match: {
+              topic:{$ne:""}
+            }
+        },
+        {   
+            $group : {
+                _id:"$topic", 
+                count:{$sum:1}
+            }
+        },
+        {
+            $sort: {
+              count: 1
+            }
+        }
+    ])
+
     const data = await dataSetModel.aggregate([
         {
             $match: {
@@ -137,15 +167,20 @@ const get_data = async (req,res) =>{
         relevance,
         region,
         country,
+        topic,
         ...obj
     })
 }
 
 const get_filter_data = async (req,res) => {
+  
+    if(Object.keys(req.body).includes('start_year')){
+        req.body.start_year = parseInt(req.body.start_year)
+    }
+
     const intensity = await dataSetModel.aggregate([
         {
             $match: {
-              sector:{$ne:""},
               ...req.body,
             }
         },
@@ -160,7 +195,6 @@ const get_filter_data = async (req,res) => {
     const likelihood = await dataSetModel.aggregate([
         {
             $match: {
-              sector:{$ne:""},
               ...req.body,
             }
         },
@@ -175,7 +209,6 @@ const get_filter_data = async (req,res) => {
     const relevance = await dataSetModel.aggregate([
         {
             $match: {
-              sector:{$ne:""},
               ...req.body,
             }
         },
@@ -187,22 +220,30 @@ const get_filter_data = async (req,res) => {
         }
         
     ])
-    console.log({
-        intensity,
-        likelihood,
-        relevance
-    });
+    const topic = await dataSetModel.aggregate([
+        {
+            $match: {
+                ...req.body,
+            }
+        },
+        {   
+            $group : {
+                _id:"$topic", 
+                count:{$sum:1}
+            }
+        },
+    ])
     res.send({
         intensity,
         likelihood,
-        relevance
+        relevance,
+        topic
     })
 }
 
 
 module.exports = {
     get_data,
-    get_all_sector,
-    get_all_start_years,
-    get_filter_data
+    get_needFull_data_for_filter,
+    get_filter_data,
 }
